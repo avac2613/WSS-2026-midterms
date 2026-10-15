@@ -1,0 +1,13 @@
+/* 요약 결과 페이지와 같은 읽기 설정 */
+.content {
+  max-width: var(--reading-width);
+  line-height: var(--leading-relaxed);
+}
+
+.content h2 {
+  margin: var(--space-6) 0 var(--space-3);
+}
+
+.content p + p {
+  margin-top: var(--space-4);
+}

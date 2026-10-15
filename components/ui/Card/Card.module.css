@@ -1,0 +1,75 @@
+.card {
+  background-color: var(--color-surface);
+  border: var(--card-border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: var(--card-padding);
+}
+
+.paddingNone {
+  padding: 0;
+}
+
+.interactive {
+  cursor: pointer;
+  transition:
+    transform var(--transition-fast),
+    box-shadow var(--transition-fast);
+}
+
+.interactive:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-float);
+}
+
+/* ---------- 머리말 ---------- */
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-bottom: var(--space-5);
+}
+
+.heading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.title {
+  font-size: var(--text-lg);
+}
+
+h1.title {
+  font-size: var(--text-2xl);
+}
+
+.description {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+.action {
+  flex-shrink: 0;
+}
+
+/* ---------- 꼬리말 ---------- */
+.footer {
+  margin-top: var(--space-5);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border);
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.footer a {
+  color: var(--color-primary);
+  font-weight: var(--weight-medium);
+}
+
+.footer a:hover {
+  text-decoration: underline;
+}

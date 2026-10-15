@@ -1,0 +1,201 @@
+/* ---------- 1. 테마와 무관한 값 ---------- */
+:root {
+  /* 폰트 */
+  --font-sans:
+    'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont,
+    system-ui, 'Apple SD Gothic Neo', 'Noto Sans KR', 'Malgun Gothic',
+    sans-serif;
+
+  /* 글자 크기 */
+  --text-xs: 0.75rem; /* 12px  작은 라벨, 배지 */
+  --text-sm: 0.875rem; /* 14px  보조 설명, 에러 메시지 */
+  --text-base: 1rem; /* 16px  본문 */
+  --text-lg: 1.125rem; /* 18px  강조 본문 */
+  --text-xl: 1.25rem; /* 20px  섹션 제목 */
+  --text-2xl: 1.75rem; /* 28px  페이지 제목 */
+
+  /* 글자 굵기 */
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-bold: 700;
+
+  /* 줄 간격 */
+  --leading-tight: 1.35; /* 제목 */
+  --leading-normal: 1.6; /* 일반 본문 */
+  --leading-relaxed: 1.75; /* AI 요약문처럼 긴 글 */
+
+  /* 긴 글 한 줄 최대 길이 (읽기 편한 폭) */
+  --reading-width: 72ch;
+
+  /* 여백: 4px 단위 */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+
+  /* 레이아웃 */
+  --header-height: 64px;
+  --sidebar-width: 240px;
+  --content-max-width: 1200px;
+  --page-padding: var(--space-6); /* 데스크톱 32px */
+  --card-padding: var(--space-5); /* 24px */
+  --card-gap: var(--space-5); /* 카드 사이 24px */
+  --section-gap: var(--space-7); /* 큰 구역 사이 48px */
+
+  /* 버튼·입력창 높이 */
+  --control-height-sm: 36px;
+  --control-height: 44px;
+  --control-height-lg: 52px;
+
+  /* 모서리 둥글기 (10px 고정) */
+  --radius: 10px;
+  --radius-full: 999px; /* 토글 스위치, 동그란 배지용 */
+
+  /* 움직임 */
+  --transition-fast: 150ms ease;
+  --transition-base: 220ms ease;
+
+  /* 쌓임 순서 */
+  --z-sidebar: 90;
+  --z-header: 100;
+  --z-overlay: 200;
+  --z-toast: 300;
+}
+
+/* 모바일: 페이지 안쪽 여백을 줄임 */
+@media (max-width: 768px) {
+  :root {
+    --page-padding: var(--space-4); /* 16px */
+    --card-padding: var(--space-4);
+    --card-gap: var(--space-4);
+    --section-gap: var(--space-6);
+  }
+}
+
+/* ---------- 2. 라이트 모드 (기본) ---------- */
+:root {
+  color-scheme: light;
+
+  /* 바탕과 표면 */
+  --color-bg: #f3f5f8; /* 페이지 바탕: 밝은 회색 */
+  --color-surface: #ffffff; /* 카드, 헤더, 사이드바 */
+  --color-surface-muted: #eceff4; /* 메뉴 hover, 비활성 입력창 */
+
+  /* 글씨 */
+  --color-text: #1e2a47; /* 본문: 푸른빛 진한 남색 */
+  --color-text-muted: #5b6680; /* 보조 설명 */
+  --color-text-subtle: #8a93a8; /* placeholder, 비활성 글씨 */
+
+  /* 테두리 */
+  --color-border: #dde2ea;
+  --color-border-strong: #c5ccd8; /* 입력창 기본 테두리 */
+
+  /* 메인 강조색 */
+  --color-primary: #3a6fd8;
+  --color-primary-hover: #2f5dba;
+  --color-primary-soft: #e7eefb; /* 선택된 메뉴 배경 */
+  --color-on-primary: #ffffff; /* 강조색 위 글씨 */
+
+  /* 상태 색 */
+  --color-success: #2e9e6a;
+  --color-success-soft: #e3f4ec;
+  --color-warning: #c98a12;
+  --color-warning-soft: #fbf1dc;
+  --color-danger: #d64545;
+  --color-danger-hover: #bb3434;
+  --color-danger-soft: #fbe7e7;
+
+  /* 포커스 표시, 모바일 사이드바 뒤 어두운 막 */
+  --color-focus-ring: rgba(58, 111, 216, 0.35);
+  --color-overlay: rgba(30, 42, 71, 0.4);
+
+  /* 그림자: 남색 기운을 섞어 바탕과 어울리게 */
+  --shadow:
+    0 2px 4px rgba(30, 42, 71, 0.04), 0 6px 16px rgba(30, 42, 71, 0.07); /* 카드 기본 */
+  --shadow-float: 0 12px 32px rgba(30, 42, 71, 0.14); /* 토스트, 드롭다운 */
+
+  /* 카드 테두리: 라이트에서는 그림자로 구분하므로 투명 */
+  --card-border: 1px solid transparent;
+}
+
+/* ---------- 3. 다크 모드 ---------- */
+/* (1) 사용자가 직접 고르지 않았다면 기기 설정을 따름 */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+
+    --color-bg: #1a2236;
+    --color-surface: #222c44;
+    --color-surface-muted: #2a3552;
+
+    --color-text: #e8ecf2;
+    --color-text-muted: #9aa4ba;
+    --color-text-subtle: #6f7a93;
+
+    --color-border: #33405c;
+    --color-border-strong: #46557a;
+
+    --color-primary: #6d9bff;
+    --color-primary-hover: #8ab0ff;
+    --color-primary-soft: rgba(109, 155, 255, 0.15);
+    --color-on-primary: #13203d;
+
+    --color-success: #4cc38a;
+    --color-success-soft: rgba(76, 195, 138, 0.15);
+    --color-warning: #f0b44c;
+    --color-warning-soft: rgba(240, 180, 76, 0.15);
+    --color-danger: #f06b6b;
+    --color-danger-hover: #f48a8a;
+    --color-danger-soft: rgba(240, 107, 107, 0.15);
+
+    --color-focus-ring: rgba(109, 155, 255, 0.45);
+    --color-overlay: rgba(8, 12, 22, 0.6);
+
+    --shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+    --shadow-float: 0 12px 32px rgba(0, 0, 0, 0.45);
+
+    --card-border: 1px solid var(--color-border);
+  }
+}
+
+/* (2) 사용자가 토글 버튼으로 다크모드를 고른 경우
+       <html data-theme="dark"> 일 때 적용 */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --color-bg: #1a2236;
+  --color-surface: #222c44;
+  --color-surface-muted: #2a3552;
+
+  --color-text: #e8ecf2;
+  --color-text-muted: #9aa4ba;
+  --color-text-subtle: #6f7a93;
+
+  --color-border: #33405c;
+  --color-border-strong: #46557a;
+
+  --color-primary: #6d9bff;
+  --color-primary-hover: #8ab0ff;
+  --color-primary-soft: rgba(109, 155, 255, 0.15);
+  --color-on-primary: #13203d;
+
+  --color-success: #4cc38a;
+  --color-success-soft: rgba(76, 195, 138, 0.15);
+  --color-warning: #f0b44c;
+  --color-warning-soft: rgba(240, 180, 76, 0.15);
+  --color-danger: #f06b6b;
+  --color-danger-hover: #f48a8a;
+  --color-danger-soft: rgba(240, 107, 107, 0.15);
+
+  --color-focus-ring: rgba(109, 155, 255, 0.45);
+  --color-overlay: rgba(8, 12, 22, 0.6);
+
+  --shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  --shadow-float: 0 12px 32px rgba(0, 0, 0, 0.45);
+
+  --card-border: 1px solid var(--color-border);
+}

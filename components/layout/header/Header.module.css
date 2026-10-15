@@ -1,0 +1,91 @@
+.header {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-header);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  height: var(--header-height);
+  padding: 0 var(--page-padding);
+  background-color: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+}
+
+/* 로그인 화면용: 배경·테두리 없이 */
+.minimal {
+  position: static;
+  background-color: transparent;
+  border-bottom: none;
+}
+
+.left,
+.right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* ---------- 로고 ---------- */
+.logo {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-bold);
+  color: var(--color-text);
+}
+
+.logoMark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius);
+  background-color: var(--color-primary);
+  color: var(--color-on-primary);
+}
+
+/* ---------- 모바일 메뉴 버튼 ---------- */
+.menuButton {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  margin-left: calc(var(--space-2) * -1);
+  border-radius: var(--radius);
+  color: var(--color-text);
+}
+
+.menuButton:hover {
+  background-color: var(--color-surface-muted);
+}
+
+.userName {
+  margin: 0 var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--color-text-muted);
+}
+
+/* 태블릿 이하: 사이드바가 숨겨지므로 메뉴 버튼 표시 */
+@media (max-width: 1024px) {
+  .menuButton {
+    display: inline-flex;
+  }
+}
+
+/* 휴대폰: 공간이 좁아 이름과 회원가입 버튼은 숨김
+   (회원가입은 로그인 화면 아래 링크로 이동 가능) */
+@media (max-width: 480px) {
+  .header {
+    gap: var(--space-2);
+  }
+
+  .userName,
+  .signup {
+    display: none;
+  }
+}

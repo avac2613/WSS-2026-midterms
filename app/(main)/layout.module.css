@@ -1,0 +1,34 @@
+.shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+.body {
+  display: flex;
+  flex: 1;
+}
+
+.main {
+  flex: 1;
+  min-width: 0; /* 넓은 표 등이 화면 밖으로 밀어내지 않도록 */
+}
+
+/* 키보드 사용자를 위한 건너뛰기 링크: Tab을 누르면 나타남 */
+.skipLink {
+  position: absolute;
+  top: var(--space-2);
+  left: var(--space-2);
+  z-index: calc(var(--z-toast) + 1);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius);
+  background-color: var(--color-primary);
+  color: var(--color-on-primary);
+  font-weight: var(--weight-medium);
+  transform: translateY(-150%);
+}
+
+.skipLink:focus {
+  transform: translateY(0);
+}

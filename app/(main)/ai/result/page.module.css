@@ -1,0 +1,13 @@
+/* (TODO: 요약문을 이 안에 넣으면 자동 적용) */
+.summary {
+  max-width: var(--reading-width);
+  line-height: var(--leading-relaxed);
+}
+
+.summary h2 {
+  margin: var(--space-6) 0 var(--space-3);
+}
+
+.summary p + p {
+  margin-top: var(--space-5);
+}

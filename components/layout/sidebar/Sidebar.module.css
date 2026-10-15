@@ -1,0 +1,121 @@
+/* ---------- 데스크톱: 왼쪽에 고정 ---------- */
+.sidebar {
+  position: sticky;
+  top: var(--header-height);
+  flex-shrink: 0;
+  width: var(--sidebar-width);
+  height: calc(100vh - var(--header-height));
+  padding: var(--space-5) var(--space-4);
+  overflow-y: auto;
+  background-color: var(--color-surface);
+  border-right: 1px solid var(--color-border);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.link {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  height: var(--control-height);
+  padding: 0 var(--space-3);
+  border-radius: var(--radius);
+  font-weight: var(--weight-medium);
+  color: var(--color-text-muted);
+  transition:
+    background-color var(--transition-fast),
+    color var(--transition-fast);
+}
+
+.link:hover {
+  background-color: var(--color-surface-muted);
+  color: var(--color-text);
+}
+
+.active,
+.active:hover {
+  background-color: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+
+/* 모바일 전용 요소는 데스크톱에서 숨김 */
+.mobileTop,
+.overlay {
+  display: none;
+}
+
+/* ---------- 태블릿·모바일: 왼쪽에서 밀려 나오는 서랍 ---------- */
+@media (max-width: 1024px) {
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: calc(var(--z-overlay) + 1);
+    width: min(var(--sidebar-width), 85vw);
+    height: 100%;
+    padding-top: 0;
+    border-right: none;
+    box-shadow: var(--shadow-float);
+    transform: translateX(-100%);
+    visibility: hidden;
+    transition:
+      transform var(--transition-base),
+      visibility 0s linear var(--transition-base);
+  }
+
+  .open {
+    transform: translateX(0);
+    visibility: visible;
+    transition:
+      transform var(--transition-base),
+      visibility 0s;
+  }
+
+  .mobileTop {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: var(--header-height);
+    margin-bottom: var(--space-2);
+  }
+
+  .mobileTitle {
+    font-weight: var(--weight-bold);
+  }
+
+  .closeButton {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: var(--radius);
+    color: var(--color-text-muted);
+  }
+
+  .closeButton:hover {
+    background-color: var(--color-surface-muted);
+    color: var(--color-text);
+  }
+
+  .overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: var(--z-overlay);
+    background-color: var(--color-overlay);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--transition-base);
+  }
+
+  .overlayVisible {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}

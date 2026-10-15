@@ -1,0 +1,84 @@
+.viewport {
+  position: fixed;
+  right: var(--space-5);
+  bottom: var(--space-5);
+  z-index: var(--z-toast);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  pointer-events: none;
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: min(400px, calc(100vw - var(--space-6)));
+  padding: var(--space-3) var(--space-3) var(--space-3) var(--space-4);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-float);
+  pointer-events: auto;
+  animation: toast-in var(--transition-base);
+}
+
+.icon {
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.success .icon {
+  color: var(--color-success);
+}
+
+.error .icon {
+  color: var(--color-danger);
+}
+
+.info .icon {
+  color: var(--color-primary);
+}
+
+.message {
+  flex: 1;
+  font-size: var(--text-sm);
+  color: var(--color-text);
+}
+
+.close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius);
+  color: var(--color-text-subtle);
+}
+
+.close:hover {
+  background-color: var(--color-surface-muted);
+  color: var(--color-text);
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 모바일: 화면 아래 가운데 */
+@media (max-width: 768px) {
+  .viewport {
+    right: var(--space-4);
+    left: var(--space-4);
+    bottom: var(--space-4);
+    align-items: center;
+  }
+}
