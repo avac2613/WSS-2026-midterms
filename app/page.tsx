@@ -1,13 +1,16 @@
 import { LinkButton } from '@/components/ui/Button/Button'
 import EmptyState from '@/components/ui/EmptyState/EmptyState'
-import Header from '@/components/layout/header/Header'
+import AuthHeader from '@/features/auth/components/AuthHeader'
+import { getCurrentUser } from '@/features/auth/lib/session'
 import styles from './page.module.css'
 
 /* 메인(랜딩) 페이지: 헤더만 있고 사이드바는 없음 */
-export default function HomePage() {
+export default async function HomePage() {
+  const user = await getCurrentUser()
+
   return (
     <>
-      <Header />
+      <AuthHeader userName={user?.name} />
       <main className={styles.main}>
         <section className={styles.hero}>
           <h1 className={styles.title}>

@@ -14,6 +14,11 @@ import styles from './summary.module.css'
 const LENGTH_LABEL = { short: '짧게', medium: '보통', long: '자세히' } as const
 const STYLE_LABEL = { bullet: '개조식', prose: '서술형' } as const
 
+/* 자료실 '추가 내용' 칸에 들어갈 텍스트 (핵심 포인트·키워드·예상 문제) */
+function toExtraText(data: SummaryResponse) {
+  return toPlainText(data).split('\n').slice(4).join('\n').trim()
+}
+
 function toPlainText(data: SummaryResponse) {
   const r = data.result
   return [
@@ -46,6 +51,8 @@ export default function SummaryResultView() {
   const [data, setData] = useState<SummaryResponse | null | undefined>(
     undefined,
   )
+  const [saving, setSaving] = useState(false)
+  const [savedId, setSavedId] = useState<string | null>(null)
 
   useEffect(() => {
     // sessionStorage는 브라우저에만 있으므로 화면이 뜬 뒤에 읽음
@@ -62,6 +69,31 @@ export default function SummaryResultView() {
     }
   }
 
+  const save = async () => {
+    if (!data || saving) return
+    setSaving(true)
+    try {
+      const response = await fetch('/api/library', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: data.result.title,
+          summary: data.result.summary,
+          content: toExtraText(data),
+          fileName: data.fileName,
+        }),
+      })
+      const body = await response.json()
+      if (!response.ok) throw new Error(body.message ?? '저장하지 못했어요')
+      setSavedId(body.lecture.id)
+      showToast('자료실에 저장했어요', 'success')
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : '저장하지 못했어요', 'error')
+    } finally {
+      setSaving(false)
+    }
+  }
+
   const actions = (
     <>
       <LinkButton href="/ai" variant="secondary">
@@ -72,8 +104,13 @@ export default function SummaryResultView() {
           복사
         </Button>
       )}
-      {/* TODO(팀원 3): 저장 API가 생기면 onClick 연결하고 disabled 제거 */}
-      <Button disabled>자료실에 저장</Button>
+      {savedId ? (
+        <LinkButton href={`/library/${savedId}`}>자료실에서 보기</LinkButton>
+      ) : (
+        <Button onClick={save} disabled={!data || saving}>
+          {saving ? '저장 중...' : '자료실에 저장'}
+        </Button>
+      )}
     </>
   )
 

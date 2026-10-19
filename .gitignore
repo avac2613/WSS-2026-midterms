@@ -4,3 +4,5 @@ out
 next-env.d.ts
 *.tsbuildinfo
 .env*.local
+# 로그인 기능 SQLite 데이터 (features/auth/lib/db.ts)
+data/

@@ -1,14 +1,29 @@
 import Link from 'next/link'
 import type { Metadata } from 'next'
+import { redirect } from 'next/navigation'
 import Card from '@/components/ui/Card/Card'
-import EmptyState from '@/components/ui/EmptyState/EmptyState'
+import LoginForm from '@/features/auth/components/LoginForm'
+import { AFTER_LOGIN_PATH } from '@/features/auth/lib/constants'
+import { safeNextPath, withNext } from '@/features/auth/lib/redirect'
+import { getCurrentUser } from '@/features/auth/lib/session'
 
 export const metadata: Metadata = { title: '로그인' }
 
-/* TODO: EmptyState 자리에 로그인 폼 구현
-   - 공통 입력창: import Input from "@/components/ui/Input/Input";
-   - 공통 버튼:   import Button from "@/components/ui/Button/Button"; */
-export default function LoginPage() {
+type Props = {
+  searchParams: Promise<{ next?: string | string[] }>
+}
+
+export default async function LoginPage({ searchParams }: Props) {
+  const next = safeNextPath((await searchParams).next)
+
+  // 이미 로그인했으면 로그인 화면을 보여 줄 필요가 없음
+  const user = await getCurrentUser()
+  if (user) {
+    redirect(
+      user.verified ? (next ?? AFTER_LOGIN_PATH) : withNext('/verify', next),
+    )
+  }
+
   return (
     <Card
       titleAs="h1"
@@ -16,15 +31,12 @@ export default function LoginPage() {
       description="계정에 로그인하고 요약한 자료를 이어서 확인하세요."
       footer={
         <>
-          아직 계정이 없나요? <Link href="/signup">회원가입</Link>
+          아직 계정이 없나요?{' '}
+          <Link href={withNext('/signup', next)}>회원가입</Link>
         </>
       }
     >
-      <EmptyState
-        variant="placeholder"
-        title="로그인 폼 영역"
-        description="아이디·비밀번호 입력창과 로그인 버튼이 들어갑니다."
-      />
+      <LoginForm next={next} />
     </Card>
   )
 }

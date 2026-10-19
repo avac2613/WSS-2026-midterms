@@ -1,0 +1,28 @@
+/* 로그인·회원가입 폼 공통 */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+/* 입력칸과 버튼 사이를 조금 더 띄움 */
+.submit {
+  margin-top: var(--space-2);
+}
+
+/* 버튼 아래 작은 안내 문구 */
+.note {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+/* 글자처럼 보이는 버튼 (카드 꼬리말의 링크와 같은 모양) */
+.linkButton {
+  color: var(--color-primary);
+  font-weight: var(--weight-medium);
+}
+
+.linkButton:hover {
+  text-decoration: underline;
+}

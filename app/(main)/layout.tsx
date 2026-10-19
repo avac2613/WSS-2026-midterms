@@ -1,30 +1,19 @@
-'use client'
+import type { ReactNode } from 'react'
+import { redirect } from 'next/navigation'
+import { getCurrentUser } from '@/features/auth/lib/session'
+import MainShell from './MainShell'
 
-import { useCallback, useState, type ReactNode } from 'react'
-import Header from '@/components/layout/header/Header'
-import Sidebar from '@/components/layout/sidebar/Sidebar'
-import styles from './layout.module.css'
+/* AI 요약, 자료실, 마이페이지 공통 레이아웃: 헤더 + 사이드바 + 본문
+   로그인하고 본인인증까지 마친 사람만 들어올 수 있어요.
+   (화면 틀은 사이드바 열림 상태 때문에 클라이언트 컴포넌트인 MainShell.tsx 로 분리) */
+export default async function MainLayout({
+  children,
+}: {
+  children: ReactNode
+}) {
+  const user = await getCurrentUser()
+  if (!user) redirect('/login')
+  if (!user.verified) redirect('/verify')
 
-/* AI 요약, 자료실, 마이페이지 공통 레이아웃: 헤더 + 사이드바 + 본문 */
-export default function MainLayout({ children }: { children: ReactNode }) {
-  const [sidebarOpen, setSidebarOpen] = useState(false)
-  const closeSidebar = useCallback(() => setSidebarOpen(false), [])
-
-  return (
-    <div className={styles.shell}>
-      <a href="#main-content" className={styles.skipLink}>
-        본문으로 건너뛰기
-      </a>
-
-      {/* TODO(팀원 2): 로그인 상태를 isLoggedIn, userName, onLogout으로 연결 */}
-      <Header onMenuClick={() => setSidebarOpen(true)} isLoggedIn={false} />
-
-      <div className={styles.body}>
-        <Sidebar open={sidebarOpen} onClose={closeSidebar} />
-        <main id="main-content" className={styles.main}>
-          {children}
-        </main>
-      </div>
-    </div>
-  )
+  return <MainShell userName={user.name}>{children}</MainShell>
 }

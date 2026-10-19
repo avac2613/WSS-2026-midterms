@@ -1,0 +1,45 @@
+.alert {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius);
+  font-size: var(--text-sm);
+  color: var(--color-text);
+}
+
+.icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  margin-top: 1px; /* 첫 줄 글자와 높이 맞춤 */
+}
+
+.message {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ---------- 종류 (토스트 알림과 같은 색) ---------- */
+.error {
+  background-color: var(--color-danger-soft);
+}
+
+.error .icon {
+  color: var(--color-danger);
+}
+
+.success {
+  background-color: var(--color-success-soft);
+}
+
+.success .icon {
+  color: var(--color-success);
+}
+
+.warning {
+  background-color: var(--color-warning-soft);
+}
+
+.warning .icon {
+  color: var(--color-warning);
+}
