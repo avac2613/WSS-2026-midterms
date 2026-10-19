@@ -1,94 +1,133 @@
 import 'server-only'
-import fs from 'node:fs'
-import path from 'node:path'
-import type { DatabaseSync } from 'node:sqlite'
+import mongoose, { Schema, type Model, type Types } from 'mongoose'
+import connectMongoDB from '@/lib/mongodb'
 
-/* SQLite 데이터베이스
-   - Node.js에 들어 있는 SQLite(node:sqlite)를 써서 따로 설치할 것이 없어요. (Node.js 22.13 이상)
-   - 데이터는 프로젝트 폴더의 data/app.db 파일에 저장됩니다. (git에는 올라가지 않음)
-   - 처음부터 다시 시작하고 싶으면 개발 서버를 끄고 data 폴더를 지우면 돼요.
-   - 쿼리에 값을 넣을 때는 항상 ? 자리표시자를 써서 SQL 인젝션을 막습니다.
-       좋은 예: db.prepare('SELECT * FROM users WHERE email = ?').get(email)
-       나쁜 예: db.prepare(`SELECT * FROM users WHERE email = '${email}'`)  ← 절대 X */
+/* 로그인 기능 데이터베이스 (MongoDB)
+   - 원래는 프로젝트 폴더의 SQLite 파일(data/app.db)에 저장했지만,
+     Vercel 서버는 프로젝트 폴더에 파일을 쓸 수 없어서 자료실과 같은 MongoDB로 옮겼어요.
+   - 연결 주소는 자료실과 같은 MONGODB_URI 환경 변수를 씁니다. (lib/mongodb.ts)
+   - 쿼리에는 항상 값만 넘기고, 사용자가 보낸 객체를 그대로 조건에 넣지 않아요.
+       좋은 예: User.findOne({ email })          ← email은 문자열로 검사한 값
+       나쁜 예: User.findOne(request.body)       ← { "$ne": null } 같은 값이 들어올 수 있음 */
 
-const DB_FILE = path.join(process.cwd(), 'data', 'app.db')
+/* ---------- 회원 ---------- */
+export type UserDoc = {
+  _id: Types.ObjectId
+  name: string
+  email: string // 소문자로 통일해서 저장
+  passwordHash: string // 비밀번호 원문은 저장하지 않음
+  phone?: string // 휴대폰으로 본인인증했을 때만 저장
+  verifiedAt: Date | null // 본인인증한 시각 (null이면 아직 안 함)
+  verifyMethod: 'email' | 'phone' | null
+  createdAt: Date
+}
 
-const SCHEMA = `
-  -- 회원
-  CREATE TABLE IF NOT EXISTS users (
-    id            INTEGER PRIMARY KEY AUTOINCREMENT,
-    name          TEXT    NOT NULL,
-    email         TEXT    NOT NULL UNIQUE,  -- 소문자로 통일해서 저장
-    password_hash TEXT    NOT NULL,         -- 비밀번호 원문은 저장하지 않음
-    phone         TEXT    UNIQUE,           -- 휴대폰으로 본인인증했을 때만 저장
-    verified_at   INTEGER,                  -- 본인인증한 시각 (NULL이면 아직 안 함)
-    verify_method TEXT,                     -- 'email' | 'phone'
-    created_at    INTEGER NOT NULL
-  );
+const UserSchema = new Schema<UserDoc>({
+  name: { type: String, required: true },
+  email: { type: String, required: true, unique: true },
+  passwordHash: { type: String, required: true },
+  phone: { type: String },
+  verifiedAt: { type: Date, default: null },
+  verifyMethod: { type: String, default: null },
+  createdAt: { type: Date, required: true },
+})
+// 번호가 있는 회원끼리만 중복 금지 (번호 없는 회원은 여러 명이어도 됨)
+UserSchema.index(
+  { phone: 1 },
+  { unique: true, partialFilterExpression: { phone: { $type: 'string' } } },
+)
 
-  -- 로그인 세션 (쿠키 값의 해시만 저장)
-  CREATE TABLE IF NOT EXISTS sessions (
-    token_hash TEXT    PRIMARY KEY,
-    user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    expires_at INTEGER NOT NULL,
-    created_at INTEGER NOT NULL
-  );
-  CREATE INDEX IF NOT EXISTS sessions_user_id ON sessions(user_id);
+/* ---------- 로그인 세션 (쿠키 값의 해시만 저장) ---------- */
+export type SessionDoc = {
+  tokenHash: string
+  userId: Types.ObjectId
+  expiresAt: Date
+  createdAt: Date
+}
 
-  -- 본인인증 인증번호 (회원마다 가장 최근 것 하나만)
-  CREATE TABLE IF NOT EXISTS verification_codes (
-    user_id    INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
-    method     TEXT    NOT NULL,
-    target     TEXT    NOT NULL,            -- 받은 이메일 또는 휴대폰 번호
-    code_hash  TEXT    NOT NULL,
-    attempts   INTEGER NOT NULL DEFAULT 0,  -- 틀린 횟수
-    expires_at INTEGER NOT NULL,
-    sent_at    INTEGER NOT NULL
-  );
+const SessionSchema = new Schema<SessionDoc>({
+  tokenHash: { type: String, required: true, unique: true },
+  userId: { type: Schema.Types.ObjectId, required: true, index: true },
+  expiresAt: { type: Date, required: true },
+  createdAt: { type: Date, required: true },
+})
+// 만료 시각이 지나면 MongoDB가 자동으로 지움 (청소용, 만료 확인은 코드에서도 함)
+SessionSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 })
 
-  -- 요청 횟수 제한 기록
-  CREATE TABLE IF NOT EXISTS rate_limits (
-    key      TEXT    PRIMARY KEY,
-    count    INTEGER NOT NULL,
-    reset_at INTEGER NOT NULL
-  );
-`
+/* ---------- 본인인증 인증번호 (회원마다 가장 최근 것 하나만) ---------- */
+export type VerificationCodeDoc = {
+  userId: Types.ObjectId
+  method: 'email' | 'phone'
+  target: string // 받은 이메일 또는 휴대폰 번호
+  codeHash: string
+  attempts: number // 틀린 횟수
+  expiresAt: Date
+  sentAt: Date
+}
 
-function openDatabase() {
-  // import 대신 실행할 때 Node.js에서 직접 꺼내 씁니다.
-  // (Next.js 번들러가 node:sqlite 모듈을 건드리지 않게 하려는 것)
-  const sqlite = process.getBuiltinModule('node:sqlite')
-  if (!sqlite) {
-    throw new Error(
-      'node:sqlite를 찾을 수 없어요. Node.js 22.13 이상으로 업데이트해 주세요.',
-    )
+const VerificationCodeSchema = new Schema<VerificationCodeDoc>({
+  userId: { type: Schema.Types.ObjectId, required: true, unique: true },
+  method: { type: String, required: true },
+  target: { type: String, required: true },
+  codeHash: { type: String, required: true },
+  attempts: { type: Number, required: true, default: 0 },
+  expiresAt: { type: Date, required: true },
+  sentAt: { type: Date, required: true },
+})
+VerificationCodeSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 })
+
+/* ---------- 요청 횟수 제한 기록 ---------- */
+export type RateLimitDoc = { key: string; count: number; resetAt: Date }
+
+const RateLimitSchema = new Schema<RateLimitDoc>({
+  key: { type: String, required: true, unique: true },
+  count: { type: Number, required: true },
+  resetAt: { type: Date, required: true },
+})
+RateLimitSchema.index({ resetAt: 1 }, { expireAfterSeconds: 0 })
+
+/* 개발 서버가 코드를 다시 불러와도 모델을 두 번 만들지 않도록 */
+function model<T>(name: string, schema: Schema<T>, collection: string) {
+  return (
+    (mongoose.models[name] as Model<T> | undefined) ??
+    mongoose.model<T>(name, schema, collection)
+  )
+}
+
+export const User = model('AuthUser', UserSchema, 'users')
+export const Session = model('AuthSession', SessionSchema, 'sessions')
+export const VerificationCode = model(
+  'AuthVerificationCode',
+  VerificationCodeSchema,
+  'verification_codes',
+)
+export const RateLimit = model('AuthRateLimit', RateLimitSchema, 'rate_limits')
+
+/* DB에 연결하고, 중복 금지(unique) 인덱스가 만들어질 때까지 기다림
+   (인덱스가 없으면 같은 이메일로 동시에 가입하는 걸 막지 못하므로 처음 한 번은 확인) */
+let ready: Promise<void> | null = null
+export async function connectAuthDb() {
+  await connectMongoDB()
+  ready ??= Promise.all([
+    User.init(),
+    Session.init(),
+    VerificationCode.init(),
+    RateLimit.init(),
+  ]).then(() => undefined)
+  try {
+    await ready
+  } catch (error) {
+    ready = null // 실패했으면 다음 요청에서 다시 시도
+    throw error
   }
-
-  fs.mkdirSync(path.dirname(DB_FILE), { recursive: true })
-  const db = new sqlite.DatabaseSync(DB_FILE)
-  db.exec('PRAGMA journal_mode = WAL') // 읽기와 쓰기가 서로 덜 막히게
-  db.exec('PRAGMA busy_timeout = 5000') // 잠겨 있으면 5초까지 기다림
-  db.exec('PRAGMA foreign_keys = ON') // 회원을 지우면 세션·인증번호도 같이 삭제
-  db.exec(SCHEMA)
-  db.prepare('DELETE FROM sessions WHERE expires_at <= ?').run(Date.now())
-  db.prepare('DELETE FROM rate_limits WHERE reset_at <= ?').run(Date.now())
-  return db
 }
 
-/* 개발 서버는 코드를 고칠 때마다 모듈을 다시 불러오므로
-   연결을 globalThis에 하나만 만들어 두고 재사용합니다. */
-const globalForDb = globalThis as typeof globalThis & {
-  __studyNoteDb?: DatabaseSync
-}
-
-export function getDb() {
-  globalForDb.__studyNoteDb ??= openDatabase()
-  return globalForDb.__studyNoteDb
-}
-
-/** UNIQUE 제약 위반인지 (같은 이메일·번호가 이미 있을 때 나는 오류) */
+/** 중복 금지 위반인지 (같은 이메일·번호가 이미 있을 때 나는 오류) */
 export function isUniqueViolation(error: unknown) {
   return (
-    error instanceof Error && error.message.includes('UNIQUE constraint failed')
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    (error as { code: unknown }).code === 11000
   )
 }

@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
   const blocked = rejectCrossSite(request)
   if (blocked) return blocked
 
-  const user = getRequestUser(request)
+  const user = await getRequestUser(request)
   if (!user) return fail(401, '로그인이 필요해요.')
   if (user.verified) {
     return fail(409, '이미 본인인증을 마쳤어요.', { reason: 'verified' })
@@ -49,13 +49,13 @@ export async function POST(request: NextRequest) {
       return fail(400, phoneError, { fieldErrors: { phone: phoneError } })
     }
     target = normalizePhone(phone)
-    if (isPhoneTaken(target, user.id)) {
+    if (await isPhoneTaken(target, user.id)) {
       const message = '이미 다른 계정에서 인증한 번호예요.'
       return fail(409, message, { fieldErrors: { phone: message } })
     }
   }
 
-  const waitSec = getResendWaitSec(user.id)
+  const waitSec = await getResendWaitSec(user.id)
   if (waitSec > 0) {
     return fail(429, `${waitSec}초 후에 다시 받을 수 있어요.`, {
       retryAfter: waitSec,
@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
 
   // 1시간에 계정당 5번, 같은 번호·이메일로 5번까지 (문자 폭탄·발송 요금 폭탄 방지)
   for (const key of [`verify:user:${user.id}`, `verify:target:${target}`]) {
-    const limit = consumeRateLimit(key, MAX_SENDS_PER_HOUR, HOUR_MS)
+    const limit = await consumeRateLimit(key, MAX_SENDS_PER_HOUR, HOUR_MS)
     if (!limit.allowed) {
       return fail(
         429,
@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  const code = issueCode(user.id, method, target)
+  const code = await issueCode(user.id, method, target)
   try {
     const { devMode } = await sendVerificationCode(method, target, code)
     return NextResponse.json({
@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     console.error(error)
-    discardCode(user.id) // 못 보낸 번호는 지워서 바로 다시 시도할 수 있게
+    await discardCode(user.id) // 못 보낸 번호는 지워서 바로 다시 시도할 수 있게
     return fail(503, '인증번호를 보내지 못했어요. 잠시 후 다시 시도해 주세요.')
   }
 }

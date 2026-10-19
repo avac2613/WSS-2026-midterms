@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
   if (blocked) return blocked
 
   const token = request.cookies.get(SESSION_COOKIE)?.value
-  const user = token ? findSessionUser(token) : null
+  const user = token ? await findSessionUser(token) : null
   if (!token || !user) return fail(401, '로그인이 필요해요.')
   if (user.verified) {
     return fail(409, '이미 본인인증을 마쳤어요.', { reason: 'verified' })
@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
     return fail(400, codeError, { fieldErrors: { code: codeError } })
   }
 
-  const result = checkCode(user.id, code)
+  const result = await checkCode(user.id, code)
   if (!result.ok) {
     if (result.reason === 'mismatch') {
       const left = result.remainingAttempts
@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    markVerified(user.id, result.method, result.target)
+    await markVerified(user.id, result.method, result.target)
   } catch (error) {
     // 그사이 다른 계정이 같은 번호로 먼저 인증한 경우
     if (isUniqueViolation(error)) {
@@ -75,8 +75,8 @@ export async function POST(request: NextRequest) {
   }
 
   // 권한이 바뀌었으니 세션을 새로 발급하고 예전 것은 폐기 (세션 고정 공격 방어)
-  deleteSession(token)
+  await deleteSession(token)
   const response = NextResponse.json({ ok: true })
-  setSessionCookie(response, createSession(user.id))
+  setSessionCookie(response, await createSession(user.id))
   return response
 }

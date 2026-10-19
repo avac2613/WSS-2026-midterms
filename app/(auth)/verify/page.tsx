@@ -36,7 +36,7 @@ export default async function VerifyPage({ searchParams }: Props) {
       <VerifyForm
         email={user.email}
         next={next}
-        pending={getPendingCode(user.id)}
+        pending={await getPendingCode(user.id)}
       />
     </Card>
   )

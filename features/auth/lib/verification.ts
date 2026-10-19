@@ -6,7 +6,11 @@ import {
   CODE_RESEND_SEC,
   CODE_TTL_SEC,
 } from '@/features/auth/lib/constants'
-import { getDb } from '@/features/auth/lib/db'
+import {
+  connectAuthDb,
+  VerificationCode,
+  type VerificationCodeDoc,
+} from '@/features/auth/lib/db'
 import type { VerifyMethod } from '@/features/auth/lib/users'
 import { formatPhone } from '@/features/auth/lib/validation'
 
@@ -15,55 +19,47 @@ import { formatPhone } from '@/features/auth/lib/validation'
    - 원문은 발송에만 쓰고 DB에는 해시만 저장
    - 5분이 지나거나 5번 틀리면 폐기, 맞히면 바로 삭제 (한 번만 사용 가능) */
 
-type CodeRow = {
-  method: VerifyMethod
-  target: string
-  code_hash: string
-  attempts: number
-  expires_at: number
-  sent_at: number
-}
-
-function hashCode(userId: number, code: string) {
+function hashCode(userId: string, code: string) {
   return createHash('sha256').update(`${userId}:${code}`).digest('hex')
 }
 
-function findCode(userId: number) {
-  return getDb()
-    .prepare('SELECT * FROM verification_codes WHERE user_id = ?')
-    .get(userId) as CodeRow | undefined
+async function findCode(userId: string) {
+  await connectAuthDb()
+  return VerificationCode.findOne({ userId }).lean<VerificationCodeDoc>()
 }
 
-export function discardCode(userId: number) {
-  getDb()
-    .prepare('DELETE FROM verification_codes WHERE user_id = ?')
-    .run(userId)
+export async function discardCode(userId: string) {
+  await connectAuthDb()
+  await VerificationCode.deleteOne({ userId })
 }
 
-/** 다시 받으려면 몇 초 더 기다려야 하는지 (0이면 바로 가능) */
-export function getResendWaitSec(userId: number) {
-  const row = findCode(userId)
+function waitSecOf(row: VerificationCodeDoc | null) {
   if (!row) return 0
-  const waitMs = row.sent_at + CODE_RESEND_SEC * 1000 - Date.now()
+  const waitMs = row.sentAt.getTime() + CODE_RESEND_SEC * 1000 - Date.now()
   return waitMs > 0 ? Math.ceil(waitMs / 1000) : 0
 }
 
+/** 다시 받으려면 몇 초 더 기다려야 하는지 (0이면 바로 가능) */
+export async function getResendWaitSec(userId: string) {
+  return waitSecOf(await findCode(userId))
+}
+
 /** 아직 유효한 인증번호가 있으면 화면에 다시 보여 줄 정보 (인증번호 자체는 X) */
-export function getPendingCode(userId: number) {
-  const row = findCode(userId)
+export async function getPendingCode(userId: string) {
+  const row = await findCode(userId)
   const now = Date.now()
-  if (!row || row.expires_at <= now) return null
+  if (!row || row.expiresAt.getTime() <= now) return null
   return {
     method: row.method,
     target: row.method === 'phone' ? formatPhone(row.target) : row.target,
-    expiresIn: Math.ceil((row.expires_at - now) / 1000),
-    resendIn: getResendWaitSec(userId),
+    expiresIn: Math.ceil((row.expiresAt.getTime() - now) / 1000),
+    resendIn: waitSecOf(row),
   }
 }
 
 /** 새 인증번호를 만들어 저장하고 원문을 돌려줌 (이전 번호는 무효가 됨) */
-export function issueCode(
-  userId: number,
+export async function issueCode(
+  userId: string,
   method: VerifyMethod,
   target: string,
 ) {
@@ -71,20 +67,20 @@ export function issueCode(
     .toString()
     .padStart(CODE_LENGTH, '0')
   const now = Date.now()
-  getDb()
-    .prepare(
-      `INSERT OR REPLACE INTO verification_codes
-         (user_id, method, target, code_hash, attempts, expires_at, sent_at)
-       VALUES (?, ?, ?, ?, 0, ?, ?)`,
-    )
-    .run(
+  await connectAuthDb()
+  await VerificationCode.replaceOne(
+    { userId },
+    {
       userId,
       method,
       target,
-      hashCode(userId, code),
-      now + CODE_TTL_SEC * 1000,
-      now,
-    )
+      codeHash: hashCode(userId, code),
+      attempts: 0,
+      expiresAt: new Date(now + CODE_TTL_SEC * 1000),
+      sentAt: new Date(now),
+    },
+    { upsert: true },
+  )
   return code
 }
 
@@ -94,26 +90,32 @@ export type CodeCheck =
   | { ok: false; reason: 'mismatch'; remainingAttempts: number }
 
 /** 입력한 인증번호 확인 */
-export function checkCode(userId: number, code: string): CodeCheck {
-  const row = findCode(userId)
+export async function checkCode(
+  userId: string,
+  code: string,
+): Promise<CodeCheck> {
+  const row = await findCode(userId)
   if (!row) return { ok: false, reason: 'missing' }
 
-  if (row.expires_at <= Date.now()) {
-    discardCode(userId)
+  if (row.expiresAt.getTime() <= Date.now()) {
+    await discardCode(userId)
     return { ok: false, reason: 'expired' }
   }
 
-  const expected = Buffer.from(row.code_hash, 'hex')
+  const expected = Buffer.from(row.codeHash, 'hex')
   const actual = Buffer.from(hashCode(userId, code), 'hex')
   if (!timingSafeEqual(expected, actual)) {
-    const attempts = row.attempts + 1
+    // 동시에 여러 번 보내도 횟수가 빠짐없이 올라가도록 DB에서 직접 1 증가
+    const updated = await VerificationCode.findOneAndUpdate(
+      { userId },
+      { $inc: { attempts: 1 } },
+      { new: true },
+    ).lean<VerificationCodeDoc>()
+    const attempts = updated?.attempts ?? CODE_MAX_ATTEMPTS
     if (attempts >= CODE_MAX_ATTEMPTS) {
-      discardCode(userId)
+      await discardCode(userId)
       return { ok: false, reason: 'locked' }
     }
-    getDb()
-      .prepare('UPDATE verification_codes SET attempts = ? WHERE user_id = ?')
-      .run(attempts, userId)
     return {
       ok: false,
       reason: 'mismatch',
@@ -121,6 +123,11 @@ export function checkCode(userId: number, code: string): CodeCheck {
     }
   }
 
-  discardCode(userId)
+  // 맞혔으면 바로 삭제 (한 번만 사용 가능). 동시에 두 번 맞혀도 하나만 통과
+  const deleted = await VerificationCode.deleteOne({
+    userId,
+    codeHash: row.codeHash,
+  })
+  if (deleted.deletedCount === 0) return { ok: false, reason: 'missing' }
   return { ok: true, method: row.method, target: row.target }
 }

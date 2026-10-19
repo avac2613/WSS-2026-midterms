@@ -11,7 +11,7 @@ import { getRequestUser } from '@/features/auth/lib/session'
    POST /api/auth/verify/confirm  인증번호 확인   → verify/confirm/route.ts */
 
 export async function GET(request: NextRequest) {
-  const user = getRequestUser(request)
+  const user = await getRequestUser(request)
   if (!user) return fail(401, '로그인이 필요해요.')
 
   // 화면에 필요한 정보만 돌려줌 (비밀번호 해시 등 X)

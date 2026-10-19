@@ -7,7 +7,7 @@ import {
   SESSION_COOKIE,
   SESSION_MAX_AGE_SEC,
 } from '@/features/auth/lib/constants'
-import { getDb } from '@/features/auth/lib/db'
+import { connectAuthDb, Session, User, type UserDoc } from '@/features/auth/lib/db'
 import type { VerifyMethod } from '@/features/auth/lib/users'
 
 /* 로그인 세션
@@ -26,7 +26,7 @@ import type { VerifyMethod } from '@/features/auth/lib/users'
 
 /** 화면·API에 넘겨도 되는 회원 정보만 (비밀번호 해시 등은 뺌) */
 export type SessionUser = {
-  id: number
+  id: string
   name: string
   email: string
   phone: string | null
@@ -34,57 +34,54 @@ export type SessionUser = {
   verifyMethod: VerifyMethod | null
 }
 
-type SessionUserRow = {
-  id: number
-  name: string
-  email: string
-  phone: string | null
-  verified_at: number | null
-  verify_method: string | null
-}
-
 function hashToken(token: string) {
   return createHash('sha256').update(token).digest('hex')
 }
 
 /** 새 세션을 만들고 쿠키에 넣을 토큰을 돌려줌 */
-export function createSession(userId: number) {
+export async function createSession(userId: string) {
   const token = randomBytes(32).toString('base64url') // 256비트 무작위 값
   const now = Date.now()
-  getDb()
-    .prepare(
-      'INSERT INTO sessions (token_hash, user_id, expires_at, created_at) VALUES (?, ?, ?, ?)',
-    )
-    .run(hashToken(token), userId, now + SESSION_MAX_AGE_SEC * 1000, now)
+  await connectAuthDb()
+  await Session.create({
+    tokenHash: hashToken(token),
+    userId,
+    expiresAt: new Date(now + SESSION_MAX_AGE_SEC * 1000),
+    createdAt: new Date(now),
+  })
   return token
 }
 
-export function deleteSession(token: string) {
-  getDb()
-    .prepare('DELETE FROM sessions WHERE token_hash = ?')
-    .run(hashToken(token))
+export async function deleteSession(token: string) {
+  await connectAuthDb()
+  await Session.deleteOne({ tokenHash: hashToken(token) })
 }
 
 /** 토큰으로 로그인한 회원 찾기 (없거나 만료됐으면 null) */
-export function findSessionUser(token: string): SessionUser | null {
-  const row = getDb()
-    .prepare(
-      `SELECT u.id, u.name, u.email, u.phone, u.verified_at, u.verify_method
-         FROM sessions s JOIN users u ON u.id = s.user_id
-        WHERE s.token_hash = ? AND s.expires_at > ?`,
-    )
-    .get(hashToken(token), Date.now()) as SessionUserRow | undefined
-  if (!row) return null
+export async function findSessionUser(
+  token: string,
+): Promise<SessionUser | null> {
+  await connectAuthDb()
+  const session = await Session.findOne({
+    tokenHash: hashToken(String(token)),
+    expiresAt: { $gt: new Date() },
+  }).lean()
+  if (!session) return null
+
+  const user = await User.findById(session.userId)
+    .select('name email phone verifiedAt verifyMethod')
+    .lean<Omit<UserDoc, 'passwordHash' | 'createdAt'>>()
+  if (!user) return null
 
   return {
-    id: row.id,
-    name: row.name,
-    email: row.email,
-    phone: row.phone,
-    verified: row.verified_at !== null,
+    id: String(user._id),
+    name: user.name,
+    email: user.email,
+    phone: user.phone ?? null,
+    verified: user.verifiedAt !== null,
     verifyMethod:
-      row.verify_method === 'email' || row.verify_method === 'phone'
-        ? row.verify_method
+      user.verifyMethod === 'email' || user.verifyMethod === 'phone'
+        ? user.verifyMethod
         : null,
   }
 }
@@ -112,7 +109,7 @@ export function clearSessionCookie(response: NextResponse) {
 
 /* ---------- 현재 로그인한 회원 ---------- */
 /** API(route.ts)에서: 요청에 붙어 온 쿠키로 확인 */
-export function getRequestUser(request: NextRequest) {
+export async function getRequestUser(request: NextRequest) {
   const token = request.cookies.get(SESSION_COOKIE)?.value
   return token ? findSessionUser(token) : null
 }

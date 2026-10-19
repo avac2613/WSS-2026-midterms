@@ -53,8 +53,8 @@ export async function POST(request: NextRequest) {
 
   // 무차별 대입 방지: 계정별 실패 횟수 + IP별 시도 횟수
   const emailKey = `login:email:${email}`
-  const emailLimit = checkRateLimit(emailKey, MAX_FAILS_PER_EMAIL)
-  const ipLimit = consumeRateLimit(
+  const emailLimit = await checkRateLimit(emailKey, MAX_FAILS_PER_EMAIL)
+  const ipLimit = await consumeRateLimit(
     `login:ip:${getClientIp(request)}`,
     MAX_TRIES_PER_IP,
     WINDOW_MS,
@@ -68,23 +68,23 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  const user = findUserByEmail(email)
+  const user = await findUserByEmail(email)
   const passwordOk = user
     ? await verifyPassword(password, user.passwordHash)
     : await verifyDummyPassword(password) // 없는 계정도 비슷한 시간이 걸리게
 
   if (!user || !passwordOk) {
-    consumeRateLimit(emailKey, MAX_FAILS_PER_EMAIL, WINDOW_MS)
+    await consumeRateLimit(emailKey, MAX_FAILS_PER_EMAIL, WINDOW_MS)
     // 이메일이 없는 건지 비밀번호가 틀린 건지 알려 주지 않음 (가입 여부 노출 방지)
     return fail(401, '이메일 또는 비밀번호가 올바르지 않아요.')
   }
 
-  resetRateLimit(emailKey)
+  await resetRateLimit(emailKey)
   const response = NextResponse.json({
     ok: true,
     verified: user.verifiedAt !== null,
   })
   // 로그인할 때마다 새 세션 발급 (세션 고정 공격 방어)
-  setSessionCookie(response, createSession(user.id))
+  setSessionCookie(response, await createSession(user.id))
   return response
 }

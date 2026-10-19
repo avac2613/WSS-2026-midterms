@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
 
   // DB에서 세션을 지워야 같은 쿠키를 다시 보내도 쓸 수 없음
   const token = request.cookies.get(SESSION_COOKIE)?.value
-  if (token) deleteSession(token)
+  if (token) await deleteSession(token)
 
   const response = NextResponse.json({ ok: true })
   clearSessionCookie(response)

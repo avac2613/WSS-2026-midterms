@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
   if (blocked) return blocked
 
   // 같은 IP에서 1시간에 10번까지 (자동 가입 봇 방지)
-  const limit = consumeRateLimit(
+  const limit = await consumeRateLimit(
     `signup:ip:${getClientIp(request)}`,
     10,
     60 * 60 * 1000,
@@ -58,13 +58,13 @@ export async function POST(request: NextRequest) {
     return fail(400, '입력한 내용을 다시 확인해 주세요.', { fieldErrors })
   }
 
-  if (findUserByEmail(email)) {
+  if (await findUserByEmail(email)) {
     return fail(409, EMAIL_TAKEN, { fieldErrors: { email: EMAIL_TAKEN } })
   }
 
-  let userId: number
+  let userId: string
   try {
-    userId = createUser({
+    userId = await createUser({
       name,
       email,
       passwordHash: await hashPassword(password),
@@ -78,6 +78,6 @@ export async function POST(request: NextRequest) {
   }
 
   const response = NextResponse.json({ ok: true }, { status: 201 })
-  setSessionCookie(response, createSession(userId))
+  setSessionCookie(response, await createSession(userId))
   return response
 }
